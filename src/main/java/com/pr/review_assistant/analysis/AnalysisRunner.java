@@ -38,6 +38,7 @@ public class AnalysisRunner {
             ProcessBuilder pb = new ProcessBuilder("bash", "scripts/run-analysis.sh");
             pb.environment().put("REPO", job.getRepo());
             pb.environment().put("HEAD_SHA", job.getHeadSha());
+            pb.environment().put("BASE_SHA", job.getBaseSha());
             pb.environment().put("GITHUB_TOKEN", githubToken);
             pb.redirectErrorStream(true);
             Process process = pb.start();
