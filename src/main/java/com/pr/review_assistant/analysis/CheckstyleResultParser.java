@@ -57,7 +57,7 @@ public class CheckstyleResultParser {
                     Element errorElement = (Element) errorNodes.item(j);
                     
                     Finding finding = Finding.builder()
-                            .file(extractFileName(fileName))
+                            .file(ExtractFileName(fileName))
                             .line(parseIntegerAttribute(errorElement.getAttribute("line"), 0))
                             .column(parseIntegerAttribute(errorElement.getAttribute("column"), 0))
                             .severity(errorElement.getAttribute("severity"))
@@ -79,7 +79,7 @@ public class CheckstyleResultParser {
         return findings;
     }
     
-    private String extractFileName(String fullPath) {
+    private String ExtractFileName(String fullPath) {
         if (fullPath == null) return "";
         int lastSlash = fullPath.lastIndexOf('/');
         return lastSlash >= 0 ? fullPath.substring(lastSlash + 1) : fullPath;
