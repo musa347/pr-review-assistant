@@ -47,9 +47,55 @@ else
     # First compile the project (needed for SpotBugs)
     mvn -B compile -DskipTests -q
     
-    # Run checkstyle on changed files only
-    echo "Running Checkstyle on changed files..."
-    mvn -B checkstyle:checkstyle -Dcheckstyle.includes="$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')" -DskipTests -q
+    # Run checkstyle on all files (we'll filter results later)
+    echo "Running Checkstyle..."
+    mvn -B checkstyle:checkstyle -DskipTests -q
+    
+    # Filter checkstyle results to only include changed files
+    if [ -f target/checkstyle-result.xml ]; then
+        echo "Filtering checkstyle results for changed files only..."
+        # Create a backup of the original results
+        cp target/checkstyle-result.xml target/checkstyle-result-full.xml
+        
+        # Create filtered results
+        python3 -c "
+import xml.etree.ElementTree as ET
+import sys
+import os
+
+# Read the changed files
+changed_files = '''$CHANGED_FILES'''.strip().split('\n')
+changed_files = [f.strip() for f in changed_files if f.strip()]
+
+if not changed_files:
+    sys.exit(0)
+
+# Parse the checkstyle XML
+tree = ET.parse('target/checkstyle-result.xml')
+root = tree.getroot()
+
+# Filter file elements to only include changed files
+files_to_keep = []
+for file_elem in root.findall('file'):
+    file_name = file_elem.get('name', '')
+    # Check if this file is in our changed files list
+    for changed_file in changed_files:
+        if file_name.endswith(changed_file) or changed_file in file_name:
+            files_to_keep.append(file_elem)
+            break
+
+# Remove all file elements and add back only the ones we want to keep
+for file_elem in root.findall('file'):
+    root.remove(file_elem)
+
+for file_elem in files_to_keep:
+    root.append(file_elem)
+
+# Write the filtered results
+tree.write('target/checkstyle-result.xml', encoding='utf-8', xml_declaration=True)
+print(f'Filtered checkstyle results: kept {len(files_to_keep)} files out of changed files')
+"
+    fi
     
     # Run SpotBugs (it will analyze only compiled classes, so effectively only changed files)
     echo "Running SpotBugs..."
