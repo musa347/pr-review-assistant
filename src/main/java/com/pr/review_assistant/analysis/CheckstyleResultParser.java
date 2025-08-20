@@ -42,11 +42,11 @@ public class CheckstyleResultParser {
                     Element errorElement = (Element) errorNodes.item(j);
                     
                     Finding finding = Finding.builder()
-                            .file(extractFileName(fileName))
-                            .line(parseIntegerAttribute(errorElement.getAttribute("line"), 0))
-                            .column(parseIntegerAttribute(errorElement.getAttribute("column"), 0))
+//                            .file(extractFileName(fileName))
+                            .line(ParseIntegerAttribute(errorElement.getAttribute("line"), 0))
+                            .column(ParseIntegerAttribute(errorElement.getAttribute("column"), 0))
                             .severity(errorElement.getAttribute("severity"))
-                            .rule(extractRuleName(errorElement.getAttribute("source")))
+                            .rule(ExtractRuleName(errorElement.getAttribute("source")))
                             .message(errorElement.getAttribute("message"))
                             .source(errorElement.getAttribute("source"))
                             .build();
@@ -64,19 +64,19 @@ public class CheckstyleResultParser {
         return findings;
     }
     
-    private String extractFileName(String fullPath) {
-        if (fullPath == null) return "";
-        int lastSlash = fullPath.lastIndexOf('/');
-        return lastSlash >= 0 ? fullPath.substring(lastSlash + 1) : fullPath;
-    }
+//    private String extractFileName(String fullPath) {
+//        if (fullPath == null) return "";
+//        int lastSlash = fullPath.lastIndexOf('/');
+//        return lastSlash >= 0 ? fullPath.substring(lastSlash + 1) : fullPath;
+//    }
     
-    private String extractRuleName(String source) {
+    private String ExtractRuleName(String source) {
         if (source == null) return "";
         int lastDot = source.lastIndexOf('.');
         return lastDot >= 0 ? source.substring(lastDot + 1) : source;
     }
     
-    private int parseIntegerAttribute(String value, int defaultValue) {
+    private int ParseIntegerAttribute(String value, int defaultValue) {
         if (value == null || value.trim().isEmpty()) {
             return defaultValue;
         }
