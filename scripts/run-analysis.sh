@@ -26,9 +26,35 @@ git fetch --all
 echo "Checking out commit: $HEAD_SHA"
 git checkout $HEAD_SHA
 
-# Run analysis
-echo "Running Maven analysis..."
-mvn -B checkstyle:checkstyle spotbugs:spotbugs -DskipTests -q
+# Get the list of changed files (Java files only)
+echo "Getting list of changed files..."
+echo "Base SHA: $BASE_SHA"
+CHANGED_FILES=$(git diff --name-only $BASE_SHA HEAD | grep '\.java$' || true)
+
+if [ -z "$CHANGED_FILES" ]; then
+    echo "No Java files changed in this PR"
+    # Create empty result files
+    mkdir -p target
+    echo '<?xml version="1.0" encoding="UTF-8"?><checkstyle version="8.45.1"><file name="no-files-changed"></file></checkstyle>' > target/checkstyle-result.xml
+    echo '<?xml version="1.0" encoding="UTF-8"?><BugCollection version="4.7.3" sequence="0" timestamp="0" analysisTimestamp="0" release=""></BugCollection>' > target/spotbugsXml.xml
+else
+    echo "Changed Java files:"
+    echo "$CHANGED_FILES"
+    
+    # Run analysis only on changed files
+    echo "Running Maven analysis on changed files..."
+    
+    # First compile the project (needed for SpotBugs)
+    mvn -B compile -DskipTests -q
+    
+    # Run checkstyle on changed files only
+    echo "Running Checkstyle on changed files..."
+    mvn -B checkstyle:checkstyle -Dcheckstyle.includes="$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')" -DskipTests -q
+    
+    # Run SpotBugs (it will analyze only compiled classes, so effectively only changed files)
+    echo "Running SpotBugs..."
+    mvn -B spotbugs:spotbugs -DskipTests -q
+fi
 
 # Copy results back to the application directory
 echo "Copying results to artifacts directory..."
