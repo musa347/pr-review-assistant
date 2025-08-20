@@ -18,7 +18,6 @@ import java.util.Map;
 public class Publisher {
     
     private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
     
     @Value("${github.token}")
     private String githubToken;
