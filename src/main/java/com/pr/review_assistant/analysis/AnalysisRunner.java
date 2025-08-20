@@ -3,17 +3,24 @@ package com.pr.review_assistant.analysis;
 import com.pr.review_assistant.database.ReviewJob;
 import com.pr.review_assistant.publisher.Publisher;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 public class AnalysisRunner {
     
     private final Publisher publisher;
+    
+    @Value("${github.token}")
+    private String githubToken;
     
     public AnalysisRunner(Publisher publisher) {
         this.publisher = publisher;
@@ -26,14 +33,22 @@ public class AnalysisRunner {
             ProcessBuilder pb = new ProcessBuilder("bash", "scripts/run-analysis.sh");
             pb.environment().put("REPO", job.getRepo());
             pb.environment().put("HEAD_SHA", job.getHeadSha());
+            pb.environment().put("GITHUB_TOKEN", githubToken);
             pb.redirectErrorStream(true);
             Process process = pb.start();
+            
+            // Capture output for debugging
+            String output = new BufferedReader(new InputStreamReader(process.getInputStream()))
+                    .lines().collect(Collectors.joining("\n"));
+            
             int exitCode = process.waitFor();
             
             if (exitCode != 0) {
-                log.error("Analysis script failed with exit code: {}", exitCode);
+                log.error("Analysis script failed with exit code: {}. Output: {}", exitCode, output);
                 return;
             }
+            
+            log.debug("Analysis script output: {}", output);
 
             // Parse results into findings
             List<String> findings = Files.readAllLines(Paths.get("artifacts/checkstyle-result.xml"));
