@@ -8,7 +8,6 @@ WORKDIR /app
 
 # Copy Maven files first (for better caching)
 COPY pom.xml .
-COPY checkstyle.xml .
 COPY src ./src
 COPY scripts ./scripts
 
