@@ -26,24 +26,27 @@ public class Publisher {
     @Value("${github.api.url}")
     private String githubApiUrl;
     
-    public void postResult(ReviewJob job, List<String> findings) {
+    public void postResult(ReviewJob job, String formattedResults) {
         log.info("Publishing results for PR #{} on {}", job.getPrNumber(), job.getRepo());
         
         try {
-            // Create a summary comment with all findings
-            String commentBody = formatFindings(findings);
-            
             // Only post to GitHub if we have a real token (not test token)
             if (!"test-token".equals(githubToken)) {
-                postCommentToPR(job, commentBody);
+                postCommentToPR(job, formattedResults);
             } else {
-                log.info("Test mode - would post comment: {}", commentBody);
+                log.info("Test mode - would post comment: {}", formattedResults);
             }
             
         } catch (Exception e) {
             log.error("Failed to publish results for PR #{} on {}: {}", 
                      job.getPrNumber(), job.getRepo(), e.getMessage(), e);
         }
+    }
+    
+    // Keep the old method for backward compatibility if needed
+    public void postResult(ReviewJob job, List<String> findings) {
+        String legacyFormat = formatFindings(findings);
+        postResult(job, legacyFormat);
     }
     
     private String formatFindings(List<String> findings) {

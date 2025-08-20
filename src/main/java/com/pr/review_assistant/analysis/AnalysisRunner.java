@@ -8,8 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,12 +16,19 @@ import java.util.stream.Collectors;
 public class AnalysisRunner {
     
     private final Publisher publisher;
+    private final CheckstyleResultParser parser;
+    private final RuleExplainer explainer;
+    private final FindingFormatter formatter;
     
     @Value("${github.token}")
     private String githubToken;
     
-    public AnalysisRunner(Publisher publisher) {
+    public AnalysisRunner(Publisher publisher, CheckstyleResultParser parser, 
+                         RuleExplainer explainer, FindingFormatter formatter) {
         this.publisher = publisher;
+        this.parser = parser;
+        this.explainer = explainer;
+        this.formatter = formatter;
     }
     
     public void run(ReviewJob job) {
@@ -50,11 +55,19 @@ public class AnalysisRunner {
             
             log.debug("Analysis script output: {}", output);
 
-            // Parse results into findings
-            List<String> findings = Files.readAllLines(Paths.get("artifacts/checkstyle-result.xml"));
-            log.info("Found {} findings for PR #{}", findings.size(), job.getPrNumber());
+            // Parse and enhance results
+            List<Finding> findings = parser.parseCheckstyleResults("artifacts/checkstyle-result.xml");
             
-            publisher.postResult(job, findings);
+            // Enhance findings with explanations and suggestions
+            List<Finding> enhancedFindings = findings.stream()
+                    .map(explainer::enhanceFinding)
+                    .collect(Collectors.toList());
+            
+            log.info("Found {} findings for PR #{}", enhancedFindings.size(), job.getPrNumber());
+            
+            // Format and publish results
+            String formattedResults = formatter.formatFindings(enhancedFindings);
+            publisher.postResult(job, formattedResults);
 
         } catch (InterruptedException e) {
             log.error("Analysis interrupted for PR #{} on {}: {}", 
