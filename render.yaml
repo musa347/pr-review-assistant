@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pr-review-assistant
+    env: java
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/review-assistant-0.0.1-SNAPSHOT.jar
+    plan: free
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false  # You'll set this manually in Render dashboard
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+    healthCheckPath: /actuator/health
