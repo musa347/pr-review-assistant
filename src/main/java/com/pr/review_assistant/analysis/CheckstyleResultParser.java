@@ -43,8 +43,8 @@ public class CheckstyleResultParser {
                     
                     Finding finding = Finding.builder()
                             .file(extractFileName(fileName))
-                            .line(Integer.parseInt(errorElement.getAttribute("line")))
-                            .column(Integer.parseInt(errorElement.getAttribute("column")))
+                            .line(parseIntegerAttribute(errorElement.getAttribute("line"), 0))
+                            .column(parseIntegerAttribute(errorElement.getAttribute("column"), 0))
                             .severity(errorElement.getAttribute("severity"))
                             .rule(extractRuleName(errorElement.getAttribute("source")))
                             .message(errorElement.getAttribute("message"))
@@ -74,5 +74,17 @@ public class CheckstyleResultParser {
         if (source == null) return "";
         int lastDot = source.lastIndexOf('.');
         return lastDot >= 0 ? source.substring(lastDot + 1) : source;
+    }
+    
+    private int parseIntegerAttribute(String value, int defaultValue) {
+        if (value == null || value.trim().isEmpty()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            log.debug("Could not parse integer value '{}', using default: {}", value, defaultValue);
+            return defaultValue;
+        }
     }
 }
