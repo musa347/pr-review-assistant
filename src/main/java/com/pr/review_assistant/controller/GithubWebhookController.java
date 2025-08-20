@@ -44,8 +44,8 @@ public class GithubWebhookController {
 
         String repo = json.get("repository").get("full_name").asText();
         int prNumber = json.get("number").asInt();
-        String headSha = json.get("pull_request").get("head").get("sha").asText();
-        String baseSha = json.get("pull_request").get("base").get("sha").asText();
+        String headSha = json.get(PULL_REQUEST_EVENT).get("head").get("sha").asText();
+        String baseSha = json.get(PULL_REQUEST_EVENT).get("base").get("sha").asText();
 
         log.info("Repo: {}", repo);
         log.info("PR Number: {}", prNumber);

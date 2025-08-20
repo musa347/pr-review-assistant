@@ -41,6 +41,10 @@ public class AnalysisRunner {
             
             publisher.postResult(job, findings);
 
+        } catch (InterruptedException e) {
+            log.error("Analysis interrupted for PR #{} on {}: {}", 
+                     job.getPrNumber(), job.getRepo(), e.getMessage(), e);
+            Thread.currentThread().interrupt(); // Preserve interrupted status
         } catch (Exception e) {
             log.error("Analysis failed for PR #{} on {}: {}", 
                      job.getPrNumber(), job.getRepo(), e.getMessage(), e);
