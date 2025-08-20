@@ -13,13 +13,16 @@ cd "$TEMP_DIR"
 echo "Cloning repository..."
 if [ -n "$GITHUB_TOKEN" ]; then
     echo "Using GitHub token for authentication"
-    git clone --depth 1 https://$GITHUB_TOKEN@github.com/$REPO repo
+    git clone https://$GITHUB_TOKEN@github.com/$REPO repo
 else
     echo "No GitHub token provided, using public access"
-    git clone --depth 1 https://github.com/$REPO repo
+    git clone https://github.com/$REPO repo
 fi
 
 cd repo
+echo "Fetching all branches and commits..."
+git fetch --all
+
 echo "Checking out commit: $HEAD_SHA"
 git checkout $HEAD_SHA
 
