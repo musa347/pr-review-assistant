@@ -34,7 +34,7 @@ public class GithubWebhookService {
     public ResponseEntity<String> processWebhook(String event, String payload) {
         log.info("Processing GitHub event: {}", event);
 
-        if (!isPullRequestEvent(event)) {
+        if (!IsPullRequestEvent(event)) {
             log.debug("Ignoring non-PR event: {}", event);
             return ResponseEntity.ok("Ignored non-PR event");
         }
@@ -63,7 +63,7 @@ public class GithubWebhookService {
         }
     }
 
-    private boolean isPullRequestEvent(String event) {
+    private boolean IsPullRequestEvent(String event) {
         return PULL_REQUEST_EVENT.equals(event);
     }
 
