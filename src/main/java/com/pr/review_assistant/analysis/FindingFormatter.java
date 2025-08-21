@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 @Component
 public class FindingFormatter {
     
-    public String formatFindings(List<Finding> findings) {
+    public String FormatFindings(List<Finding> findings) {
         if (findings.isEmpty()) {
             return "Code Review Results\n\n" +
                    "**No issues found!** Your code looks clean and follows best practices!\n\n" +
