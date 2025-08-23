@@ -1,4 +1,4 @@
-#PR Review Assistant
+# PR Review Assistant
 
 The PR Review Assistant automates the first pass of code review so developers can focus on high-level design instead of repetitive checks. It provides instant, consistent, and actionable feedback to make reviews faster, help PRs merge sooner, and catch bugs earlier.
 
