@@ -68,7 +68,8 @@ public class AnalysisRunner {
             
             // Format and publish results
             String formattedResults = formatter.formatFindings(enhancedFindings);
-            publisher.postResult(job, formattedResults);
+            // Pass structured findings for inline comments
+            publisher.postResult(job, formattedResults, enhancedFindings);
 
         } catch (InterruptedException e) {
             log.error("Analysis interrupted for PR #{} on {}: {}", 

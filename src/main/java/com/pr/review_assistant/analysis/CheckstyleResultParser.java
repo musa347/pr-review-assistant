@@ -43,21 +43,31 @@ public class CheckstyleResultParser {
             
             for (int i = 0; i < fileNodes.getLength(); i++) {
                 Element fileElement = (Element) fileNodes.item(i);
-                String fileName = fileElement.getAttribute("name");
-                
+                String filePath = fileElement.getAttribute("name");
+
                 // Skip files that are not in the changed files list
-                if (!changedFiles.isEmpty() && !isFileInChangedList(fileName, changedFiles)) {
-                    log.debug("Skipping file not in changed list: {}", fileName);
+                if (!changedFiles.isEmpty() && !isFileInChangedList(filePath, changedFiles)) {
+                    log.debug("Skipping file not in changed list: {}", filePath);
                     continue;
                 }
-                
+
+                // Derive a good relative path for GitHub API by matching changed files first
+                String relative = toRelativePath(filePath);
+                for (String cf : changedFiles) {
+                    if (relative.endsWith(cf) || filePath.endsWith(cf)) {
+                        relative = cf; // use exact changed file path
+                        break;
+                    }
+                }
+
                 NodeList errorNodes = fileElement.getElementsByTagName("error");
-                
+
                 for (int j = 0; j < errorNodes.getLength(); j++) {
                     Element errorElement = (Element) errorNodes.item(j);
-                    
+
                     Finding finding = Finding.builder()
-                            .file(extractFileName(fileName))
+                            .file(extractFileName(filePath))
+                            .relativePath(relative)
                             .line(parseIntegerAttribute(errorElement.getAttribute("line"), 0))
                             .column(parseIntegerAttribute(errorElement.getAttribute("column"), 0))
                             .severity(errorElement.getAttribute("severity"))
@@ -65,7 +75,7 @@ public class CheckstyleResultParser {
                             .message(errorElement.getAttribute("message"))
                             .source(errorElement.getAttribute("source"))
                             .build();
-                    
+
                     findings.add(finding);
                 }
             }
@@ -83,6 +93,22 @@ public class CheckstyleResultParser {
         if (fullPath == null) return "";
         int lastSlash = fullPath.lastIndexOf('/');
         return lastSlash >= 0 ? fullPath.substring(lastSlash + 1) : fullPath;
+    }
+
+    private String toRelativePath(String fullPath) {
+        if (fullPath == null) return "";
+        String p = fullPath.replace("\\", "/");
+
+        // If we can find the repo root segment, trim up to and including it
+        int idx = p.lastIndexOf("/repo/");
+        if (idx >= 0) {
+            p = p.substring(idx + "/repo/".length());
+        } else if (p.startsWith("/app/")) {
+            p = p.substring("/app/".length());
+        }
+
+        // Collapse any duplicate slashes
+        return p.replaceAll("/+", "/");
     }
     
     private String extractRuleName(String source) {
@@ -133,13 +159,7 @@ public class CheckstyleResultParser {
         }
         
         // Extract just the file path relative to the project root
-        // The filePath from checkstyle might be absolute, so we need to normalize it
-        String normalizedPath = filePath;
-        
-        // Remove common prefixes that might be added by checkstyle
-        if (normalizedPath.startsWith("/app/")) {
-            normalizedPath = normalizedPath.substring(5); // Remove "/app/"
-        }
+        String normalizedPath = toRelativePath(filePath);
         
         // Check if any of the changed files match this file
         for (String changedFile : changedFiles) {

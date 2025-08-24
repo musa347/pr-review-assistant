@@ -6,7 +6,8 @@ import lombok.Builder;
 @Data
 @Builder
 public class Finding {
-    private String file;
+    private String file;           // Display name (basename)
+    private String relativePath;   // Path relative to repo root (required for inline comments)
     private int line;
     private int column;
     private String severity;
