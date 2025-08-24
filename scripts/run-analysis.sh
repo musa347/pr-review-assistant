@@ -38,16 +38,35 @@ else
 fi
 
 detect_java_version() {
-  local ver
-  # Try maven.compiler.release first
-  ver=$($MVN_CMD -q -Dexpression=maven.compiler.release help:evaluate -DforceStdout 2>/dev/null || true)
-  if [[ -z "$ver" || "$ver" == "\${maven.compiler.release}" ]]; then
-    ver=$($MVN_CMD -q -Dexpression=maven.compiler.target help:evaluate -DforceStdout 2>/dev/null || true)
+  local ver raw
+  # Try evaluating common Maven properties
+  for prop in maven.compiler.release maven.compiler.target maven.compiler.source; do
+    raw=$($MVN_CMD -q -Dexpression=$prop help:evaluate -DforceStdout 2>/dev/null || true)
+    if [[ -n "$raw" && "$raw" != "\${$prop}" && "$raw" != "null object or invalid expression" ]]; then
+      if [[ "$raw" =~ ^[0-9]+$ ]]; then
+        echo "$raw"
+        return
+      fi
+    fi
+  done
+
+  # Fallback: parse from POM properties
+  for tag in maven.compiler.release maven.compiler.target maven.compiler.source java.version; do
+    ver=$(sed -n "s:.*<$tag>\\([0-9][0-9]*\\)</$tag>.*:\\1:p" pom.xml | head -n1)
+    if [[ -n "$ver" ]]; then
+      echo "$ver"
+      return
+    fi
+  done
+
+  # Fallback: parse maven-compiler-plugin block
+  ver=$(awk 'BEGIN{RS="</plugin>"}; /<artifactId>maven-compiler-plugin</{ if (match($0, /<release>([0-9]+)/, a)) {print a[1]; exit} else if (match($0, /<target>([0-9]+)/, a)) {print a[1]; exit} else if (match($0, /<source>([0-9]+)/, a)) {print a[1]; exit}}' pom.xml)
+  if [[ -n "$ver" ]]; then
+    echo "$ver"
+    return
   fi
-  if [[ -z "$ver" || "$ver" == "\${maven.compiler.target}" ]]; then
-    ver=$($MVN_CMD -q -Dexpression=maven.compiler.source help:evaluate -DforceStdout 2>/dev/null || true)
-  fi
-  echo "$ver"
+
+  echo ""  # unknown
 }
 
 DEFAULT_JAVA_HOME="${JAVA_HOME}"
