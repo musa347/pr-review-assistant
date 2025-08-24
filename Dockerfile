@@ -9,7 +9,12 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Install JDK 23 side-by-side (keeps JDK 17 as the default for building/running this app)
+# Install JDK 21 and 23 side-by-side (keeps JDK 17 as the default for building/running this app)
+RUN curl -fsSL "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse?project=jdk" -o /tmp/jdk21.tar.gz \
+ && mkdir -p /opt \
+ && tar -xzf /tmp/jdk21.tar.gz -C /opt \
+ && rm /tmp/jdk21.tar.gz \
+ && mv /opt/jdk-21* /opt/jdk-21
 RUN curl -fsSL "https://api.adoptium.net/v3/binary/latest/23/ga/linux/x64/jdk/hotspot/normal/eclipse?project=jdk" -o /tmp/jdk23.tar.gz \
  && mkdir -p /opt \
  && tar -xzf /tmp/jdk23.tar.gz -C /opt \
