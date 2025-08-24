@@ -1,8 +1,11 @@
 #!/bin/bash
 set -e
 
+APP_DIR="$(pwd -P)"  # Remember app dir to copy artifacts back
+
 echo "Starting analysis for repository: $REPO"
 echo "Head SHA: $HEAD_SHA"
+echo "App directory: $APP_DIR"
 
 # Create a temporary directory for the repo
 TEMP_DIR=$(mktemp -d)
@@ -51,17 +54,34 @@ DEFAULT_JAVA_HOME="${JAVA_HOME}"
 REQUIRED_JAVA="$(detect_java_version)"
 echo "Detected required Java version: ${REQUIRED_JAVA:-unknown}"
 
-# Switch JAVA_HOME only if the project needs JDK 23+
-if [[ "$REQUIRED_JAVA" =~ ^2[3-9]$ ]]; then
-  if [ -d "/opt/jdk-23" ]; then
-    export JAVA_HOME="/opt/jdk-23"
-    export PATH="$JAVA_HOME/bin:$PATH"
-    echo "Switched JAVA_HOME to JDK 23 at $JAVA_HOME"
-  else
-    echo "WARNING: JDK 23 not installed, proceeding with default JAVA_HOME=$DEFAULT_JAVA_HOME"
+# Switch JAVA_HOME to match REQUIRED_JAVA
+CANDIDATE_JAVA_HOME=""
+if [[ -n "$REQUIRED_JAVA" ]]; then
+  # macOS: try /usr/libexec/java_home
+  if command -v /usr/libexec/java_home >/dev/null 2>&1; then
+    case "$REQUIRED_JAVA" in
+      17|21|22|23)
+        CANDIDATE_JAVA_HOME="$(/usr/libexec/java_home -v "$REQUIRED_JAVA" 2>/dev/null || true)"
+        ;;
+    esac
   fi
+  # Linux container fallback: /opt/jdk-<version>
+  if [[ -z "$CANDIDATE_JAVA_HOME" && -d "/opt/jdk-$REQUIRED_JAVA" ]]; then
+    CANDIDATE_JAVA_HOME="/opt/jdk-$REQUIRED_JAVA"
+  fi
+  # If project needs 23+ and exact version not present, use JDK 23 if available
+  if [[ -z "$CANDIDATE_JAVA_HOME" && "$REQUIRED_JAVA" =~ ^2[3-9]$ && -d "/opt/jdk-23" ]]; then
+    CANDIDATE_JAVA_HOME="/opt/jdk-23"
+  fi
+fi
+
+if [[ -n "$CANDIDATE_JAVA_HOME" ]]; then
+  export JAVA_HOME="$CANDIDATE_JAVA_HOME"
+  export PATH="$JAVA_HOME/bin:$PATH"
+  echo "Switched JAVA_HOME to JDK $REQUIRED_JAVA at $JAVA_HOME"
 else
   export JAVA_HOME="$DEFAULT_JAVA_HOME"
+  echo "Using default JAVA_HOME=$JAVA_HOME"
 fi
 
 echo "java -version:"
@@ -92,7 +112,8 @@ else
     echo "Checkstyle completed. Changed files for reference: $CHANGED_FILES"
     
     # Save the list of changed files for the Java parser to use
-    echo "$CHANGED_FILES" > /app/artifacts/changed-files.txt
+    mkdir -p "$APP_DIR/artifacts"
+    echo "$CHANGED_FILES" > "$APP_DIR/artifacts/changed-files.txt"
     
     # Run SpotBugs with a recent plugin version
     echo "Running SpotBugs..."
@@ -101,16 +122,16 @@ fi
 
 # Copy results back to the application directory
 echo "Copying results to artifacts directory..."
-mkdir -p /app/artifacts
+mkdir -p "$APP_DIR/artifacts"
 if [ -f target/checkstyle-result.xml ]; then
-    cp target/checkstyle-result.xml /app/artifacts/
+    cp target/checkstyle-result.xml "$APP_DIR/artifacts/"
     echo "Checkstyle results copied"
 else
     echo "No checkstyle results found"
 fi
 
 if [ -f target/spotbugsXml.xml ]; then
-    cp target/spotbugsXml.xml /app/artifacts/
+    cp target/spotbugsXml.xml "$APP_DIR/artifacts/"
     echo "SpotBugs results copied"
 else
     echo "No SpotBugs results found"
@@ -118,6 +139,6 @@ fi
 
 # Clean up
 echo "Cleaning up temporary directory..."
-cd /app
+cd "$APP_DIR"
 rm -rf "$TEMP_DIR"
 echo "Analysis completed successfully"
