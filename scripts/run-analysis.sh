@@ -26,6 +26,47 @@ git fetch --all
 echo "Checking out commit: $HEAD_SHA"
 git checkout $HEAD_SHA
 
+# Prefer the project's Maven Wrapper if available
+MVN_CMD="./mvnw"
+if [ -f "mvnw" ]; then
+  chmod +x mvnw || true
+else
+  MVN_CMD="mvn"
+fi
+
+detect_java_version() {
+  local ver
+  # Try maven.compiler.release first
+  ver=$($MVN_CMD -q -Dexpression=maven.compiler.release help:evaluate -DforceStdout 2>/dev/null || true)
+  if [[ -z "$ver" || "$ver" == "\${maven.compiler.release}" ]]; then
+    ver=$($MVN_CMD -q -Dexpression=maven.compiler.target help:evaluate -DforceStdout 2>/dev/null || true)
+  fi
+  if [[ -z "$ver" || "$ver" == "\${maven.compiler.target}" ]]; then
+    ver=$($MVN_CMD -q -Dexpression=maven.compiler.source help:evaluate -DforceStdout 2>/dev/null || true)
+  fi
+  echo "$ver"
+}
+
+DEFAULT_JAVA_HOME="${JAVA_HOME}"
+REQUIRED_JAVA="$(detect_java_version)"
+echo "Detected required Java version: ${REQUIRED_JAVA:-unknown}"
+
+# Switch JAVA_HOME only if the project needs JDK 23+
+if [[ "$REQUIRED_JAVA" =~ ^2[3-9]$ ]]; then
+  if [ -d "/opt/jdk-23" ]; then
+    export JAVA_HOME="/opt/jdk-23"
+    export PATH="$JAVA_HOME/bin:$PATH"
+    echo "Switched JAVA_HOME to JDK 23 at $JAVA_HOME"
+  else
+    echo "WARNING: JDK 23 not installed, proceeding with default JAVA_HOME=$DEFAULT_JAVA_HOME"
+  fi
+else
+  export JAVA_HOME="$DEFAULT_JAVA_HOME"
+fi
+
+echo "java -version:"
+java -version
+
 # Get the list of changed files (Java files only)
 echo "Getting list of changed files..."
 echo "Base SHA: $BASE_SHA"
@@ -41,25 +82,21 @@ else
     echo "Changed Java files:"
     echo "$CHANGED_FILES"
     
-    # Run analysis only on changed files
-    echo "Running Maven analysis on changed files..."
+    # Compile the project (needed for SpotBugs)
+    $MVN_CMD -B compile -DskipTests -q
     
-    # First compile the project (needed for SpotBugs)
-    mvn -B compile -DskipTests -q
-    
-    # For now, let's just run checkstyle on all files to ensure it works
-    # We'll implement filtering in the Java parser instead
-    echo "Running Checkstyle on all files..."
-    mvn -B checkstyle:checkstyle -DskipTests -q
+    # Run Checkstyle with an explicit plugin version supporting newer JDKs
+    echo "Running Checkstyle..."
+    $MVN_CMD -B org.apache.maven.plugins:maven-checkstyle-plugin:3.6.0:checkstyle -DskipTests -q
     
     echo "Checkstyle completed. Changed files for reference: $CHANGED_FILES"
     
     # Save the list of changed files for the Java parser to use
     echo "$CHANGED_FILES" > /app/artifacts/changed-files.txt
     
-    # Run SpotBugs (it will analyze only compiled classes, so effectively only changed files)
+    # Run SpotBugs with a recent plugin version
     echo "Running SpotBugs..."
-    mvn -B spotbugs:spotbugs -DskipTests -q
+    $MVN_CMD -B com.github.spotbugs:spotbugs-maven-plugin:4.8.5.0:spotbugs -DskipTests -q
 fi
 
 # Copy results back to the application directory
