@@ -22,7 +22,7 @@ import java.util.Set;
 @Component
 public class CheckstyleResultParser {
     
-    public List<Finding> parseCheckstyleResults(String xmlFilePath) {
+    public List<Finding> ParseCheckstyleResults(String xmlFilePath) {
         List<Finding> findings = new ArrayList<>();
         
         try {
